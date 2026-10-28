@@ -7,6 +7,9 @@ import { createHousehold, joinHousehold, useHousehold } from '../data/household'
 import { BatchesPage } from '../features/batches/BatchesPage'
 import { GroceryPage } from '../features/grocery/GroceryPage'
 import { PlanPage } from '../features/plan/PlanPage'
+import { RecipeEditorPage } from '../features/recipes/RecipeEditorPage'
+import { RecipeImportPage } from '../features/recipes/RecipeImportPage'
+import { RecipePage } from '../features/recipes/RecipePage'
 import { RecipesPage } from '../features/recipes/RecipesPage'
 import { SettingsPage } from '../features/settings/SettingsPage'
 import { Button, Card, CenteredMessage } from '../ui/components'
@@ -43,6 +46,10 @@ function HouseholdGate({ user }: { user: User }) {
               <Route path="/batches" element={<BatchesPage />} />
               <Route path="/groceries" element={<GroceryPage />} />
               <Route path="/recipes" element={<RecipesPage />} />
+              <Route path="/recipes/import" element={<RecipeImportPage />} />
+              <Route path="/recipes/new" element={<RecipeEditorPage />} />
+              <Route path="/recipes/:id" element={<RecipePage />} />
+              <Route path="/recipes/:id/edit" element={<RecipeEditorPage />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

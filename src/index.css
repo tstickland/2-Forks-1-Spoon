@@ -18,3 +18,30 @@ body {
   @apply bg-stone-50 text-stone-900 antialiased;
   -webkit-tap-highlight-color: transparent;
 }
+
+/* Rendered recipe instructions (markdown). Preflight strips list styles, so restore the basics. */
+.markdown ol {
+  @apply list-decimal space-y-1 pl-6;
+}
+.markdown ul {
+  @apply list-disc space-y-1 pl-6;
+}
+.markdown li > ol,
+.markdown li > ul {
+  @apply mt-1;
+}
+.markdown p + p,
+.markdown p + ol,
+.markdown p + ul,
+.markdown ol + p,
+.markdown ul + p {
+  @apply mt-3;
+}
+.markdown h1,
+.markdown h2,
+.markdown h3 {
+  @apply mt-4 mb-2 font-semibold;
+}
+.markdown a {
+  @apply text-brand-700 underline;
+}

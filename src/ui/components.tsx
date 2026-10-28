@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from 'react'
+import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, TextareaHTMLAttributes } from 'react'
 
 export function Button({
   variant = 'primary',
@@ -56,4 +56,22 @@ export function PageHeader({ title, children }: { title: string; children?: Reac
 
 export function CenteredMessage({ children }: { children: ReactNode }) {
   return <div className="flex min-h-full items-center justify-center p-6 text-center">{children}</div>
+}
+
+export function TextArea({ className = '', ...props }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return (
+    <textarea
+      className={`w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-base focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100 ${className}`}
+      {...props}
+    />
+  )
+}
+
+export function Badge({ tone = 'neutral', children }: { tone?: 'neutral' | 'warning' | 'brand'; children: ReactNode }) {
+  const styles = {
+    neutral: 'bg-stone-100 text-stone-600',
+    warning: 'bg-amber-100 text-amber-800',
+    brand: 'bg-brand-100 text-brand-800',
+  }[tone]
+  return <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${styles}`}>{children}</span>
 }

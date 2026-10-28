@@ -53,7 +53,11 @@ export interface IngredientLine {
   amountText: string
   /** Parsed numeric amount, when parseable. */
   amount?: number
+  /** Upper bound when the amount is a range ("1-2 tbsp"). */
+  amountMax?: number
   unit?: string
+  /** Weight in grams, from a mass amount or a bracketed hint like "butter (115g)". */
+  grams?: number
   name: string
   /** Link to the ingredient catalog, once matched. */
   ingredientId?: string
@@ -79,7 +83,10 @@ export interface Recipe {
   /** Macros for the whole recipe at 1× scale. */
   macrosTotal?: Macros
   fridgeDays: number
+  /** Original RecipeMD text this recipe was imported from. */
   source?: string
+  /** Vault path it was imported from, e.g. "Meals/Dinner/Burgers.md". */
+  sourcePath?: string
 }
 
 export interface CatalogIngredient {

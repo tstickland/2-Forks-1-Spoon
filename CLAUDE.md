@@ -56,6 +56,13 @@ Keep `src/domain/` pure TypeScript with no Firebase or React imports, so it stay
 - `npm test`: domain unit tests. `npm run test:rules`: security rules tests on the emulator.
 - `npm run build`, `npm run lint` (oxlint), `npm run deploy`.
 - Dates are local `YYYY-MM-DD` strings. Use the helpers in `src/domain/dates.ts`, never `Date` arithmetic.
+- Emulator mode always uses the `demo-2-forks-1-spoon` project, even if `.env.local` has the real config.
+- Tests get Node types from `tsconfig.test.json`. The app's `tsconfig.app.json` excludes `*.test.ts`.
+
+### Recipe import notes
+- `recipes_vault_copy/` is a git-ignored local copy of the Obsidian vault. `src/domain/recipemd/vault.test.ts` parses every recipe in it, and is skipped when the folder isn't there.
+- The vault drifts from strict RecipeMD: YAML frontmatter, no `# Title` (the filename is the title), `#hashtag` tags, plain-text yields, ingredient groups as indented plain lines, units outside `*…*`, unicode fractions and NBSPs, and gram hints like `butter (115g)`. `parse.ts` handles all of these, and `serialize.ts` writes strict RecipeMD back out.
+- `Ribs.md` has template text pasted into an ingredient, and `Breakfast Sandwich.md` is the unfilled template. The importer flags both.
 
 ### Build phases
 1. Foundation: scaffold, Tailwind, PWA manifest, Firebase auth + rules, offline persistence.

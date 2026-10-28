@@ -29,3 +29,6 @@ dist-ssr
 .env.local
 firestore-debug.log
 ui-debug.log
+
+# Local copy of the Obsidian vault, used only to test the importer
+recipes_vault_copy/
