@@ -1,0 +1,45 @@
+rules_version = '2';
+
+// Only members of a household can see or change anything in it.
+// A person whose (verified) email is on the household's invite list may read it and add themselves.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function verifiedEmail() {
+      return request.auth.token.email != null && request.auth.token.email_verified == true
+        ? request.auth.token.email.lower()
+        : '';
+    }
+
+    function isMemberOf(hid) {
+      return signedIn()
+        && request.auth.uid in get(/databases/$(database)/documents/households/$(hid)).data.memberUids;
+    }
+
+    match /households/{hid} {
+      allow read: if signedIn()
+        && (request.auth.uid in resource.data.memberUids || verifiedEmail() in resource.data.invitedEmails);
+
+      allow create: if signedIn() && request.resource.data.memberUids == [request.auth.uid];
+
+      allow update: if signedIn() && (
+        // Members can edit anything, but cannot remove themselves (which would lock them out).
+        (request.auth.uid in resource.data.memberUids && request.auth.uid in request.resource.data.memberUids)
+        // An invitee may only append themselves (plus their member profile and lunch slot).
+        || (verifiedEmail() in resource.data.invitedEmails
+            && request.resource.data.memberUids == resource.data.memberUids.concat([request.auth.uid])
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberUids', 'members', 'slots']))
+      );
+
+      allow delete: if false;
+
+      match /{collection}/{docId} {
+        allow read, write: if isMemberOf(hid);
+      }
+    }
+  }
+}
