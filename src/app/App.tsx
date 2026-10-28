@@ -8,6 +8,8 @@ import { BatchesPage } from '../features/batches/BatchesPage'
 import { BatchPage } from '../features/batches/BatchPage'
 import { NewBatchPage } from '../features/batches/NewBatchPage'
 import { GroceryPage } from '../features/grocery/GroceryPage'
+import { IngredientsPage } from '../features/grocery/IngredientsPage'
+import { TripPage } from '../features/grocery/TripPage'
 import { PlanPage } from '../features/plan/PlanPage'
 import { RecipeEditorPage } from '../features/recipes/RecipeEditorPage'
 import { RecipeImportPage } from '../features/recipes/RecipeImportPage'
@@ -56,6 +58,8 @@ function HouseholdGate({ user }: { user: User }) {
               <Route path="/batches/new" element={<NewBatchPage />} />
               <Route path="/batches/:id" element={<BatchPage />} />
               <Route path="/groceries" element={<GroceryPage />} />
+              <Route path="/groceries/ingredients" element={<IngredientsPage />} />
+              <Route path="/groceries/:tripId" element={<TripPage />} />
               <Route path="/recipes" element={<RecipesPage />} />
               <Route path="/recipes/import" element={<RecipeImportPage />} />
               <Route path="/recipes/new" element={<RecipeEditorPage />} />

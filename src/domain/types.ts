@@ -127,18 +127,21 @@ export interface MealEntry {
   grams: number
 }
 
-export interface TripItem {
-  key: string
+export type TripStore = Exclude<Store, 'Either'>
+
+/** Something added to a trip by hand (paper towels, snacks…). */
+export interface ExtraItem {
+  id: string
   name: string
-  quantityText: string
-  aisle: string
-  checked: boolean
-  manual: boolean
 }
 
-export interface Trip {
+/**
+ * What's saved for a shopping trip. The list itself is generated from the plan (see grocery.ts),
+ * so only what people do to it is stored. Doc id is `${store}_${date}` (see tripId).
+ */
+export interface TripState {
   id: string
-  date: IsoDate
-  store: Exclude<Store, 'Either'>
-  items: TripItem[]
+  /** Item key → ticked off. */
+  checked: Record<string, boolean>
+  extras: ExtraItem[]
 }

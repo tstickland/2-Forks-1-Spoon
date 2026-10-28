@@ -36,7 +36,7 @@ React + TypeScript + Vite, Tailwind, `vite-plugin-pwa`, Firebase (Firestore with
 - `ingredients` (catalog): name, aliases, store, aisle, `shelfLifeDays`, `pantryStaple`, unit conversions (e.g. 1 cup = 120 g), optional pack size.
 - `batches`: recipeId, cookDate, scale, `estimatedWeightG`, `actualWeightG?`, status (planned | cooked), frozen grams, notes.
 - `mealEntries`: date, slotId, personUid, batchId, `grams`.
-- `trips`: date, store, generated items, manual extras, checked state.
+- `trips` (id `${store}_${date}`): only `checked` (item key → bool) and `extras` (items added by hand). The list itself is generated from the plan each time (`buildGroceryPlan`), so it always matches the current plan.
 
 Security rules allow access only to the two household members' UIDs.
 
@@ -65,6 +65,13 @@ Keep `src/domain/` pure TypeScript with no Firebase or React imports, so it stay
 - `usePlanData()` loads recipes, batches and the last 60 days of meal entries, and computes every batch's forecast in one place. Pages use it rather than computing forecasts themselves.
 - Recording a batch's cooked weight can also set the recipe's `expectedYieldG` (weight ÷ scale). That's how recipes without a yield get one.
 - Firestore writes from the UI aren't awaited before navigating. The local cache applies them immediately, which keeps the app usable offline.
+
+### Grocery notes
+- Only batches with status `planned` and a cook date from today onward go on lists. Cooked batches are already bought.
+- Items match across recipes by `ingredientKey()` (lowercase, prep and size words removed, last word singular), then through catalog names and aliases. "Same as…" in the ingredient sheet adds an alias.
+- Item keys for ticking off are `c:<catalog id>` once set up and `k:<ingredient key>` before. Extras are `x:<id>`. Ticks are merged writes per key, so two phones can tick at once, even offline.
+- Items not set up get a guessed aisle (`guessAisle`) and staple flag (`guessStaple`), and buy at "Either" store. Water and ice are never listed.
+- When writing regexes through a shell heredoc, `\b` can turn into a backspace character. Edit regex-bearing code with the file editor.
 
 ### Recipe import notes
 - `recipes_vault_copy/` is a git-ignored local copy of the Obsidian vault. `src/domain/recipemd/vault.test.ts` parses every recipe in it, and is skipped when the folder isn't there.
