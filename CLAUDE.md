@@ -36,6 +36,7 @@ React + TypeScript + Vite, Tailwind, `vite-plugin-pwa`, Firebase (Firestore with
 - `ingredients` (catalog): name, aliases, store, aisle, `shelfLifeDays`, `pantryStaple`, unit conversions (e.g. 1 cup = 120 g), optional pack size.
 - `batches`: recipeId, cookDate, scale, `estimatedWeightG`, `actualWeightG?`, status (planned | cooked), frozen grams, notes.
 - `mealEntries`: date, slotId, personUid, batchId, `grams`.
+- `templates`: name plus a week pattern (`batches` with `cookOffset` and `meals` with `dayOffset`, relative to the week's Sunday). See `src/domain/templates.ts`.
 - `trips` (id `${store}_${date}`): only `checked` (item key → bool) and `extras` (items added by hand). The list itself is generated from the plan each time (`buildGroceryPlan`), so it always matches the current plan.
 
 Security rules allow access only to the two household members' UIDs.
@@ -64,6 +65,9 @@ Keep `src/domain/` pure TypeScript with no Firebase or React imports, so it stay
 - Meal entry ids are `${date}_${slotId}_${personUid}` (`mealEntryId` in `src/domain/plan.ts`): one entry per person per slot per day, so writes are idempotent.
 - `usePlanData()` loads recipes, batches and the last 60 days of meal entries, and computes every batch's forecast in one place. Pages use it rather than computing forecasts themselves.
 - Recording a batch's cooked weight can also set the recipe's `expectedYieldG` (weight ÷ scale). That's how recipes without a yield get one.
+- **Freezer:** `batch.frozenG` is grams put in the freezer. Meals after `fridgeUntil` draw from it. The forecast's `freezeMoreG` is what still needs freezing, and `freezerLeftG` is frozen food not yet planned (shown under "In the freezer" on Batches).
+- **Repeat last week and templates** both go through `captureWeek` → `instantiateWeek`. These create *new* planned batches (same recipe and scale, cook day shifted) rather than reusing old ones, because last week's batch would be past fridge life.
+- **Macros** (`/macros`) are per person from planned meals only (lunch and dinner). "Left" under a target is room for unplanned breakfast and snacks.
 - Firestore writes from the UI aren't awaited before navigating. The local cache applies them immediately, which keeps the app usable offline.
 
 ### Grocery notes

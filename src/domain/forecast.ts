@@ -24,8 +24,14 @@ export interface BatchForecast {
   shortOn?: { date: IsoDate; missingG: number }
   /** Last day it's safe to eat from the fridge. */
   fridgeUntil: IsoDate
-  /** Planned meals after the fridge-life cutoff: freeze these portions. */
+  /** Planned meals after the fridge-life cutoff: these portions need to come from the freezer. */
   pastFridgeLife: { date: IsoDate; grams: number }[]
+  /** Grams recorded as put in the freezer. */
+  frozenG: number
+  /** Grams that still need freezing (by `fridgeUntil`) to cover the meals planned after it. */
+  freezeMoreG: number
+  /** Frozen grams not planned for any meal yet: available to plan. */
+  freezerLeftG: number
   /** Planned meals dated before the batch is cooked. */
   beforeCooked: { date: IsoDate; grams: number }[]
   /** Scale (0.5 steps) whose estimate would cover everything planned; only while the batch isn't cooked. */
@@ -58,18 +64,28 @@ export function forecastBatch(batch: Batch, recipe: Recipe | undefined, entries:
     }
   }
 
+  const remainingG = weight ? weight.grams - planned : undefined
+  const pastFridgeLife = days
+    .filter((d) => daysBetween(batch.cookDate, d.date) > fridgeDays)
+    .map((d) => ({ date: d.date, grams: d.plannedG }))
+  const neededFromFreezer = pastFridgeLife.reduce((sum, d) => sum + d.grams, 0)
+  const frozenG = batch.frozenG ?? 0
+  // Unplanned frozen food, but never more than is actually left of the batch.
+  const freezerLeft = Math.max(0, frozenG - neededFromFreezer)
+
   const forecast: BatchForecast = {
     batchId: batch.id,
     weightG: weight?.grams,
     estimated: weight?.estimated ?? true,
     plannedG: planned,
-    remainingG: weight ? weight.grams - planned : undefined,
+    remainingG,
     days,
     shortOn,
     fridgeUntil,
-    pastFridgeLife: days
-      .filter((d) => daysBetween(batch.cookDate, d.date) > fridgeDays)
-      .map((d) => ({ date: d.date, grams: d.plannedG })),
+    pastFridgeLife,
+    frozenG,
+    freezeMoreG: Math.max(0, neededFromFreezer - frozenG),
+    freezerLeftG: remainingG === undefined ? freezerLeft : Math.min(freezerLeft, Math.max(0, remainingG)),
     beforeCooked: days.filter((d) => d.date < batch.cookDate).map((d) => ({ date: d.date, grams: d.plannedG })),
   }
 
@@ -89,8 +105,10 @@ export function forecastProblems(f: BatchForecast): string[] {
   const problems: string[] = []
   if (f.weightG === undefined) problems.push('No cooked weight yet, so how long it lasts is unknown.')
   if (f.shortOn) problems.push(`Runs out ${formatShort(f.shortOn.date)}: short ${Math.round(f.shortOn.missingG)} g that day.`)
-  if (f.pastFridgeLife.length) {
-    problems.push(`${dayCount(f.pastFridgeLife.length)} planned after ${formatShort(f.fridgeUntil)}: freeze those portions.`)
+  if (f.freezeMoreG > 0) {
+    problems.push(
+      `Freeze ${Math.round(f.freezeMoreG)} g by ${formatShort(f.fridgeUntil)} (${dayCount(f.pastFridgeLife.length)} planned after then).`,
+    )
   }
   if (f.beforeCooked.length) problems.push(`${dayCount(f.beforeCooked.length)} planned before it's cooked.`)
   return problems

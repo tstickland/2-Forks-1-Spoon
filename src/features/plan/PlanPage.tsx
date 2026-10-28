@@ -11,6 +11,7 @@ import { BatchRunway } from '../batches/Runway'
 import { batchTint } from '../batches/runwayText'
 import { AssignSheet } from './AssignSheet'
 import { usePlanData, type PlanData } from './usePlanData'
+import { WeekSheet } from './WeekSheet'
 
 const WEEKS_SHOWN = 2
 
@@ -20,6 +21,7 @@ export function PlanPage() {
   const [weekStart, setWeekStart] = useState(thisWeek)
   const { data, error } = usePlanData(weekStart)
   const [editing, setEditing] = useState<{ date: IsoDate; slot: Slot } | null>(null)
+  const [weekMenu, setWeekMenu] = useState<IsoDate | null>(null)
 
   const days = dateRange(weekStart, addDays(weekStart, WEEKS_SHOWN * 7 - 1))
 
@@ -27,6 +29,9 @@ export function PlanPage() {
     <>
       <PageHeader title="Plan">
         <div className="flex items-center gap-1">
+          <Link to={`/macros?week=${weekStart}`} className="mr-1 rounded-lg bg-white px-3 py-2 text-sm font-medium ring-1 ring-stone-300">
+            Macros
+          </Link>
           <Button variant="secondary" className="!px-3" aria-label="Previous week" onClick={() => setWeekStart(addDays(weekStart, -7))}>
             ‹
           </Button>
@@ -46,8 +51,14 @@ export function PlanPage() {
       {data && (
         <div className="space-y-6">
           <Attention data={data} batches={batchesInView(data, days)} />
-          <PlanGrid data={data} slots={household.slots} days={days} onEdit={(date, slot) => setEditing({ date, slot })} />
-          <RunwayList data={data} batches={batchesInView(data, days)} days={days} onScale={(id, scale) => updateBatch(household.id, id, { scale })} />
+          <PlanGrid
+            data={data}
+            slots={household.slots}
+            days={days}
+            onEdit={(date, slot) => setEditing({ date, slot })}
+            onWeekMenu={setWeekMenu}
+          />
+          <RunwayList data={data} batches={batchesInView(data, days)} days={days} onUpdate={(id, changes) => updateBatch(household.id, id, changes)} />
         </div>
       )}
 
@@ -60,6 +71,7 @@ export function PlanPage() {
           onClose={() => setEditing(null)}
         />
       )}
+      {data && weekMenu && <WeekSheet data={data} weekStart={weekMenu} onClose={() => setWeekMenu(null)} />}
     </>
   )
 }
@@ -69,11 +81,13 @@ function PlanGrid({
   slots,
   days,
   onEdit,
+  onWeekMenu,
 }: {
   data: PlanData
   slots: Slot[]
   days: IsoDate[]
   onEdit: (date: IsoDate, slot: Slot) => void
+  onWeekMenu: (weekStart: IsoDate) => void
 }) {
   const weeks = [] as IsoDate[][]
   for (let i = 0; i < days.length; i += 7) weeks.push(days.slice(i, i + 7))
@@ -83,7 +97,16 @@ function PlanGrid({
     <div className="space-y-4">
       {weeks.map((week) => (
         <section key={week[0]}>
-          <h2 className="mb-1 text-sm font-semibold text-stone-500">Week of {formatShort(week[0])}</h2>
+          <div className="mb-1 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-stone-500">Week of {formatShort(week[0])}</h2>
+            <button
+              className="rounded-lg px-2 text-lg leading-none text-stone-500 hover:bg-stone-200"
+              aria-label={`Week of ${formatShort(week[0])} options`}
+              onClick={() => onWeekMenu(week[0])}
+            >
+              ⋯
+            </button>
+          </div>
           <div className="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-stone-200">
             <div className="grid border-b border-stone-200 bg-stone-50 text-xs font-medium text-stone-600" style={{ gridTemplateColumns: columns }}>
               <div />
@@ -130,7 +153,10 @@ function PlanCell({ data, date, slot, onClick }: { data: PlanData; date: IsoDate
   const recipe = batch && data.recipeById.get(batch.recipeId)
   const forecast = batch && data.forecasts.get(batch.id)
   const short = forecast?.days.some((d) => d.date === date && d.remainingG !== undefined && d.remainingG < 0)
-  const late = forecast?.pastFridgeLife.some((p) => p.date === date)
+  const pastFridge = forecast?.pastFridgeLife.some((p) => p.date === date)
+  // Past fridge life is only a problem until enough has been frozen to cover it.
+  const fromFreezer = pastFridge && forecast!.freezeMoreG === 0
+  const late = pastFridge && !fromFreezer
   const early = batch && date < batch.cookDate
   const trouble = short || late || early
   return (
@@ -143,6 +169,7 @@ function PlanCell({ data, date, slot, onClick }: { data: PlanData; date: IsoDate
       <span className="text-[11px] text-stone-600">
         {cell.map((e) => e.grams).join(' · ')} g
         {trouble && <span className="ml-1 font-semibold text-red-700">{short ? 'short' : late ? 'freeze' : 'not cooked'}</span>}
+        {!trouble && fromFreezer && <span className="ml-1" title="From the freezer">❄</span>}
       </span>
     </button>
   )
@@ -188,12 +215,12 @@ function RunwayList({
   data,
   batches: inView,
   days,
-  onScale,
+  onUpdate,
 }: {
   data: PlanData
   batches: Batch[]
   days: IsoDate[]
-  onScale: (batchId: string, scale: number) => void
+  onUpdate: (batchId: string, changes: Partial<Omit<Batch, 'id'>>) => void
 }) {
   const first = days[0]
   return (
@@ -210,7 +237,7 @@ function RunwayList({
         </p>
       ) : (
         inView.map((b) => (
-          <BatchRunway key={b.id} batch={b} recipe={data.recipeById.get(b.recipeId)} forecast={data.forecasts.get(b.id)!} onScale={(s) => onScale(b.id, s)} />
+          <BatchRunway key={b.id} batch={b} recipe={data.recipeById.get(b.recipeId)} forecast={data.forecasts.get(b.id)!} onUpdate={(c) => onUpdate(b.id, c)} />
         ))
       )}
     </section>

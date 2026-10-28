@@ -42,6 +42,18 @@ describe('forecastBatch', () => {
     const f = forecastBatch(batch, recipe, weekdays)
     expect(f.fridgeUntil).toBe('2026-11-05')
     expect(f.pastFridgeLife).toEqual([{ date: '2026-11-06', grams: 800 }])
+    expect(f.freezeMoreG).toBe(800)
+  })
+
+  it('counts frozen portions: covers late meals and shows what is left in the freezer', () => {
+    const big: Batch = { ...batch, scale: 2 } // 4800 g, 4000 g planned
+    expect(forecastBatch({ ...big, frozenG: 500 }, recipe, weekdays).freezeMoreG).toBe(300)
+    const covered = forecastBatch({ ...big, frozenG: 1500 }, recipe, weekdays)
+    expect(covered.freezeMoreG).toBe(0)
+    expect(covered.freezerLeftG).toBe(700) // 1500 frozen − 800 planned from it
+    expect(forecastProblems(covered)).toEqual([])
+    // Never more in the freezer than is left of the batch.
+    expect(forecastBatch({ ...big, frozenG: 3000 }, recipe, weekdays).freezerLeftG).toBe(800)
   })
 
   it('uses the measured weight once recorded, and stops suggesting a scale', () => {
@@ -82,7 +94,7 @@ describe('forecastBatch', () => {
   it('describes problems in plain language', () => {
     expect(forecastProblems(forecastBatch(batch, recipe, weekdays))).toEqual([
       'Runs out Thu 5 Nov: short 200 g that day.',
-      '1 day planned after Thu 5 Nov: freeze those portions.',
+      'Freeze 800 g by Thu 5 Nov (1 day planned after then).',
     ])
     expect(forecastProblems(forecastBatch({ ...batch, scale: 2 }, recipe, weekdays.filter((e) => e.date < '2026-11-06')))).toEqual([])
   })

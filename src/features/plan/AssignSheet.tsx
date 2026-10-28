@@ -194,7 +194,12 @@ function BatchOption({
           </div>
           <div className="text-xs text-stone-600">{runwaySummary(forecast)}</div>
           {notCooked && <div className="text-xs text-red-700">Not cooked yet on this day</div>}
-          {!notCooked && tooOld && <div className="text-xs text-amber-700">Past fridge life on this day: freeze a portion</div>}
+          {!notCooked && tooOld && forecast.freezerLeftG > 0 && (
+            <div className="text-xs text-sky-700">❄ {formatGrams(forecast.freezerLeftG)} in the freezer</div>
+          )}
+          {!notCooked && tooOld && forecast.freezerLeftG === 0 && (
+            <div className="text-xs text-amber-700">Past fridge life on this day: you'll need to freeze a portion</div>
+          )}
         </div>
       </label>
     </li>

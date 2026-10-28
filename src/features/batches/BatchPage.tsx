@@ -58,11 +58,11 @@ export function BatchPage() {
         recipe={recipe}
         forecast={forecast}
         link={false}
-        onScale={(scale) => updateBatch(household.id, batch.id, { scale })}
+        onUpdate={(changes) => updateBatch(household.id, batch.id, changes)}
       />
 
       <CookedWeight key={`${batch.id}-${batch.actualWeightG}`} householdId={household.id} batch={batch} recipe={recipe} />
-      <Details key={`${batch.cookDate}-${batch.scale}`} householdId={household.id} batch={batch} />
+      <Details key={`${batch.cookDate}-${batch.scale}-${batch.frozenG}`} householdId={household.id} batch={batch} forecast={forecast} />
       <PlannedMeals household={household} meals={meals} forecast={forecast} />
       {recipe && <ScaledIngredients recipe={recipe} scale={batch.scale} />}
 
@@ -144,20 +144,23 @@ function CookedWeight({ householdId, batch, recipe }: { householdId: string; bat
   )
 }
 
-function Details({ householdId, batch }: { householdId: string; batch: Batch }) {
+function Details({ householdId, batch, forecast }: { householdId: string; batch: Batch; forecast: BatchForecast }) {
   const [cookDate, setCookDate] = useState(batch.cookDate)
   const [scale, setScale] = useState(String(batch.scale))
+  const [frozen, setFrozen] = useState(String(batch.frozenG ?? 0))
   const value = Number(scale)
-  const changed = cookDate !== batch.cookDate || value !== batch.scale
-  const valid = Boolean(cookDate) && value > 0
+  const frozenValue = frozen.trim() === '' ? 0 : Number(frozen)
+  const changed = cookDate !== batch.cookDate || value !== batch.scale || frozenValue !== (batch.frozenG ?? 0)
+  const valid = Boolean(cookDate) && value > 0 && Number.isFinite(frozenValue) && frozenValue >= 0
 
   const submit = (e: FormEvent) => {
     e.preventDefault()
-    if (valid) updateBatch(householdId, batch.id, { cookDate, scale: value }).catch((err: Error) => alert(err.message))
+    if (!valid) return
+    updateBatch(householdId, batch.id, { cookDate, scale: value, frozenG: Math.round(frozenValue) }).catch((err: Error) => alert(err.message))
   }
 
   return (
-    <Card title="Cook date and scale">
+    <Card title="Cook date, scale and freezer">
       <form onSubmit={submit} className="space-y-3">
         <div className="grid grid-cols-2 gap-3">
           <Field label="Cook date">
@@ -167,6 +170,13 @@ function Details({ householdId, batch }: { householdId: string; batch: Batch }) 
             <Input type="number" inputMode="decimal" min={0.25} step={0.25} value={scale} onChange={(e) => setScale(e.target.value)} />
           </Field>
         </div>
+        <Field label="Put in the freezer (g)">
+          <Input type="number" inputMode="numeric" min={0} value={frozen} onChange={(e) => setFrozen(e.target.value)} />
+        </Field>
+        <p className="-mt-1 text-xs text-stone-500">
+          Frozen portions don't count against the fridge life (until {formatShort(forecast.fridgeUntil)}).
+          {forecast.freezeMoreG > 0 && ` Freeze at least ${formatGrams(forecast.freezeMoreG)} more to cover meals planned after then.`}
+        </p>
         {changed && (
           <div className="flex justify-end">
             <Button type="submit" disabled={!valid}>
@@ -201,6 +211,7 @@ function PlannedMeals({ household, meals, forecast }: { household: Household; me
         {forecast.days.map((day) => {
           const short = day.remainingG !== undefined && day.remainingG < 0
           const late = forecast.pastFridgeLife.some((p) => p.date === day.date)
+          const fromFreezer = late && forecast.freezeMoreG === 0
           return (
             <li key={day.date} className="flex items-start justify-between gap-3 py-2">
               <div>
@@ -211,7 +222,8 @@ function PlannedMeals({ household, meals, forecast }: { household: Household; me
                     .map((m) => `${name(m.personUid)} ${m.grams} g${slotNote(m.slotId)}`)
                     .join(' · ')}
                 </div>
-                {late && <div className="text-xs text-red-700">Past fridge life: freeze this portion</div>}
+                {fromFreezer && <div className="text-xs text-sky-700">❄ From the freezer</div>}
+                {late && !fromFreezer && <div className="text-xs text-red-700">Past fridge life: freeze this portion</div>}
               </div>
               <div className={`shrink-0 text-right ${short ? 'font-semibold text-red-700' : 'text-stone-600'}`}>
                 {day.remainingG === undefined ? '' : short ? `${formatGrams(-day.remainingG)} short` : `${formatGrams(day.remainingG)} left`}

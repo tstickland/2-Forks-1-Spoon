@@ -74,3 +74,16 @@ export function applyEntryChanges(householdId: string, changes: EntryChanges): P
   for (const id of changes.remove) batch.delete(doc(entriesRef(householdId), id))
   return batch.commit()
 }
+
+/** A fresh batch id, for creating batches and the meals that point at them in one write. */
+export function newBatchId(householdId: string): string {
+  return doc(batchesRef(householdId)).id
+}
+
+/** Write several batches and meal entries at once (used to repeat a week or apply a template). */
+export function addBatchesAndEntries(householdId: string, batches: Batch[], entries: MealEntry[]): Promise<void> {
+  const write = writeBatch(db)
+  for (const { id, ...batch } of batches) write.set(doc(batchesRef(householdId), id), batch)
+  for (const { id, ...entry } of entries) write.set(doc(entriesRef(householdId), id), entry)
+  return write.commit()
+}

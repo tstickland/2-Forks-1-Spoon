@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { formatScale } from '../../domain/batch'
+import { formatGrams, formatScale } from '../../domain/batch'
 import { forecastProblems, type BatchForecast } from '../../domain/forecast'
 import type { Batch, Recipe } from '../../domain/types'
 import { Button } from '../../ui/components'
@@ -26,13 +26,14 @@ export function BatchRunway({
   batch,
   recipe,
   forecast,
-  onScale,
+  onUpdate,
   link = true,
 }: {
   batch: Batch
   recipe?: Recipe
   forecast: BatchForecast
-  onScale?: (scale: number) => void
+  /** Enables the one-tap fixes (scale up, freeze portions). */
+  onUpdate?: (changes: Partial<Omit<Batch, 'id'>>) => void
   link?: boolean
 }) {
   const problems = forecastProblems(forecast)
@@ -63,10 +64,19 @@ export function BatchRunway({
           ))}
         </ul>
       )}
-      {forecast.suggestedScale !== undefined && onScale && (
-        <Button className="mt-2 !px-3 !py-1" onClick={() => onScale(forecast.suggestedScale!)}>
-          Scale to {formatScale(forecast.suggestedScale)}
-        </Button>
+      {onUpdate && (forecast.suggestedScale !== undefined || forecast.freezeMoreG > 0) && (
+        <div className="mt-2 flex flex-wrap gap-2">
+          {forecast.suggestedScale !== undefined && (
+            <Button className="!px-3 !py-1" onClick={() => onUpdate({ scale: forecast.suggestedScale })}>
+              Scale to {formatScale(forecast.suggestedScale)}
+            </Button>
+          )}
+          {forecast.freezeMoreG > 0 && (
+            <Button variant="secondary" className="!px-3 !py-1" onClick={() => onUpdate({ frozenG: forecast.frozenG + Math.round(forecast.freezeMoreG) })}>
+              ❄ Mark {formatGrams(forecast.freezeMoreG)} frozen
+            </Button>
+          )}
+        </div>
       )}
     </div>
   )

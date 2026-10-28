@@ -31,8 +31,9 @@ export function batchSubtitle(batch: Batch, forecast: BatchForecast): string {
 }
 
 export function runwaySummary(forecast: BatchForecast): string {
-  const { weightG, plannedG, remainingG } = forecast
-  if (weightG === undefined) return `${formatGrams(plannedG)} planned`
-  if (remainingG! < 0) return `${formatGrams(plannedG)} planned · ${formatGrams(-remainingG!)} short`
-  return `${formatGrams(plannedG)} planned · ${formatGrams(remainingG!)} spare`
+  const { weightG, plannedG, remainingG, frozenG, freezerLeftG } = forecast
+  const freezer = frozenG > 0 ? ` · ❄ ${formatGrams(frozenG)} frozen${freezerLeftG > 0 ? ` (${formatGrams(freezerLeftG)} unplanned)` : ''}` : ''
+  if (weightG === undefined) return `${formatGrams(plannedG)} planned${freezer}`
+  if (remainingG! < 0) return `${formatGrams(plannedG)} planned · ${formatGrams(-remainingG!)} short${freezer}`
+  return `${formatGrams(plannedG)} planned · ${formatGrams(remainingG!)} spare${freezer}`
 }

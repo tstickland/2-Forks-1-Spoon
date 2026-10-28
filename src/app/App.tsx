@@ -10,6 +10,7 @@ import { NewBatchPage } from '../features/batches/NewBatchPage'
 import { GroceryPage } from '../features/grocery/GroceryPage'
 import { IngredientsPage } from '../features/grocery/IngredientsPage'
 import { TripPage } from '../features/grocery/TripPage'
+import { MacrosPage } from '../features/plan/MacrosPage'
 import { PlanPage } from '../features/plan/PlanPage'
 import { RecipeEditorPage } from '../features/recipes/RecipeEditorPage'
 import { RecipeImportPage } from '../features/recipes/RecipeImportPage'
@@ -54,6 +55,7 @@ function HouseholdGate({ user }: { user: User }) {
           <Layout>
             <Routes>
               <Route path="/" element={<PlanPage />} />
+              <Route path="/macros" element={<MacrosPage />} />
               <Route path="/batches" element={<BatchesPage />} />
               <Route path="/batches/new" element={<NewBatchPage />} />
               <Route path="/batches/:id" element={<BatchPage />} />

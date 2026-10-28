@@ -23,18 +23,21 @@ export function BatchesPage() {
       </PageHeader>
       {error && <p className="mb-3 text-sm text-red-700">Couldn't load batches: {error}</p>}
       {!data && !error && <p className="text-stone-500">Loading…</p>}
-      {data && <BatchLists data={data} onScale={(b, scale) => updateBatch(household.id, b.id, { scale })} />}
+      {data && <BatchLists data={data} onUpdate={(b, changes) => updateBatch(household.id, b.id, changes)} />}
     </>
   )
 }
 
-function BatchLists({ data, onScale }: { data: PlanData; onScale: (b: Batch, scale: number) => void }) {
+function BatchLists({ data, onUpdate }: { data: PlanData; onUpdate: (b: Batch, changes: Partial<Omit<Batch, 'id'>>) => void }) {
   const cutoff = addDays(today(), -CURRENT_DAYS)
-  const hasUpcomingMeals = (b: Batch) => (data.forecasts.get(b.id)?.days ?? []).some((d) => d.date >= today())
+  const forecast = (b: Batch) => data.forecasts.get(b.id)!
+  const hasUpcomingMeals = (b: Batch) => forecast(b).days.some((d) => d.date >= today())
   const current = data.batches
     .filter((b) => b.cookDate >= cutoff || hasUpcomingMeals(b))
     .sort((a, b) => a.cookDate.localeCompare(b.cookDate))
-  const earlier = data.batches.filter((b) => !current.includes(b))
+  // Older batches with frozen food nobody has planned yet.
+  const inFreezer = data.batches.filter((b) => !current.includes(b) && forecast(b).freezerLeftG > 0)
+  const earlier = data.batches.filter((b) => !current.includes(b) && !inFreezer.includes(b))
 
   if (data.batches.length === 0) {
     return (
@@ -51,13 +54,7 @@ function BatchLists({ data, onScale }: { data: PlanData; onScale: (b: Batch, sca
   }
 
   const runway = (b: Batch) => (
-    <BatchRunway
-      key={b.id}
-      batch={b}
-      recipe={data.recipeById.get(b.recipeId)}
-      forecast={data.forecasts.get(b.id)!}
-      onScale={(scale) => onScale(b, scale)}
-    />
+    <BatchRunway key={b.id} batch={b} recipe={data.recipeById.get(b.recipeId)} forecast={forecast(b)} onUpdate={(c) => onUpdate(b, c)} />
   )
 
   return (
@@ -66,6 +63,13 @@ function BatchLists({ data, onScale }: { data: PlanData; onScale: (b: Batch, sca
         <h2 className="text-sm font-semibold uppercase tracking-wide text-stone-500">Upcoming and in the fridge</h2>
         {current.length ? current.map(runway) : <p className="text-stone-500">Nothing planned. Add a batch to get started.</p>}
       </section>
+      {inFreezer.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-stone-500">In the freezer</h2>
+          <p className="text-xs text-stone-500">Frozen portions not planned yet. Pick them for a meal on the Plan tab.</p>
+          {inFreezer.map(runway)}
+        </section>
+      )}
       {earlier.length > 0 && (
         <details className="space-y-2">
           <summary className="cursor-pointer text-sm font-semibold uppercase tracking-wide text-stone-500">
