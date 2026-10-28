@@ -1,7 +1,7 @@
 import type { User } from 'firebase/auth'
 import { useState } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
-import { signInWithGoogle, useAuthUser } from '../data/auth'
+import { signInErrorMessage, signInWithGoogle, signOutUser, useAuthUser, useRedirectSignInError } from '../data/auth'
 import { firebaseConfigured, usingEmulators } from '../data/firebase'
 import { createHousehold, joinHousehold, useHousehold } from '../data/household'
 import { BatchesPage } from '../features/batches/BatchesPage'
@@ -34,7 +34,14 @@ function HouseholdGate({ user }: { user: User }) {
     case 'loading':
       return <CenteredMessage>Loading your household…</CenteredMessage>
     case 'error':
-      return <CenteredMessage>Couldn't load your household: {state.message}</CenteredMessage>
+      return (
+        <CenteredMessage>
+          <div className="max-w-sm space-y-4">
+            <p>Couldn't load your household: {state.message}</p>
+            <SwitchAccount user={user} />
+          </div>
+        </CenteredMessage>
+      )
     case 'none':
       return <Onboarding user={user} invites={state.invites} />
     case 'member':
@@ -61,6 +68,8 @@ function HouseholdGate({ user }: { user: User }) {
 
 function SignIn() {
   const [error, setError] = useState<string | null>(null)
+  const redirectError = useRedirectSignInError()
+  const shownError = error ?? redirectError
   return (
     <CenteredMessage>
       <div className="w-full max-w-sm space-y-6">
@@ -69,10 +78,17 @@ function SignIn() {
           <h1 className="text-2xl font-bold">2 Forks 1 Spoon</h1>
           <p className="mt-1 text-stone-600">Plan batches, never run out mid-week, and shop once.</p>
         </div>
-        <Button className="w-full" onClick={() => signInWithGoogle().catch((e: Error) => setError(e.message))}>
+        <Button
+          className="w-full"
+          onClick={() => {
+            setError(null)
+            signInWithGoogle().catch((e) => setError(signInErrorMessage(e)))
+          }}
+        >
           Sign in with Google
         </Button>
-        {error && <p className="text-sm text-red-700">{error}</p>}
+        <p className="text-sm text-stone-500">Google will ask which account to use. Pick the one your household uses.</p>
+        {shownError && <p className="text-sm text-red-700">{shownError}</p>}
       </div>
     </CenteredMessage>
   )
@@ -115,8 +131,21 @@ function Onboarding({ user, invites }: { user: User; invites: { id: string; name
           </Button>
         </Card>
         {error && <p className="text-sm text-red-700">{error}</p>}
+        <SwitchAccount user={user} />
       </div>
     </CenteredMessage>
+  )
+}
+
+/** Shows who is signed in, with a way out if it's the wrong Google account. */
+function SwitchAccount({ user }: { user: User }) {
+  return (
+    <p className="text-center text-sm text-stone-500">
+      Signed in as <span className="font-medium text-stone-700">{user.email ?? user.displayName}</span>.{' '}
+      <button className="font-medium text-brand-700 underline" onClick={() => signOutUser()}>
+        Use a different account
+      </button>
+    </p>
   )
 }
 

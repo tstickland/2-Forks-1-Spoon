@@ -16,6 +16,9 @@ export function SettingsPage() {
           Sign out
         </Button>
       </PageHeader>
+      <p className="-mt-2 mb-4 text-sm text-stone-500">
+        Signed in as <span className="font-medium text-stone-700">{user.email}</span>
+      </p>
       <div className="space-y-4">
         {/* Keyed by content so drafts reset when the other phone saves a change. */}
         <HouseholdName key={household.name} household={household} />

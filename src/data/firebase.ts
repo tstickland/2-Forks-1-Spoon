@@ -36,6 +36,9 @@ export const db = initializeFirestore(app, {
 
 export const auth = getAuth(app)
 export const googleProvider = new GoogleAuthProvider()
+// Always show Google's account chooser. Without this Google silently reuses whichever account the
+// browser is signed into (e.g. a school account), with no chance to pick another.
+googleProvider.setCustomParameters({ prompt: 'select_account' })
 
 if (usingEmulators) {
   connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true })
