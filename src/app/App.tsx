@@ -5,6 +5,8 @@ import { signInErrorMessage, signInWithGoogle, signOutUser, useAuthUser, useRedi
 import { firebaseConfigured, usingEmulators } from '../data/firebase'
 import { createHousehold, joinHousehold, useHousehold } from '../data/household'
 import { BatchesPage } from '../features/batches/BatchesPage'
+import { BatchPage } from '../features/batches/BatchPage'
+import { NewBatchPage } from '../features/batches/NewBatchPage'
 import { GroceryPage } from '../features/grocery/GroceryPage'
 import { PlanPage } from '../features/plan/PlanPage'
 import { RecipeEditorPage } from '../features/recipes/RecipeEditorPage'
@@ -51,6 +53,8 @@ function HouseholdGate({ user }: { user: User }) {
             <Routes>
               <Route path="/" element={<PlanPage />} />
               <Route path="/batches" element={<BatchesPage />} />
+              <Route path="/batches/new" element={<NewBatchPage />} />
+              <Route path="/batches/:id" element={<BatchPage />} />
               <Route path="/groceries" element={<GroceryPage />} />
               <Route path="/recipes" element={<RecipesPage />} />
               <Route path="/recipes/import" element={<RecipeImportPage />} />

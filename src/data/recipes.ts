@@ -1,4 +1,4 @@
-import { collection, deleteDoc, doc, onSnapshot, setDoc, writeBatch } from 'firebase/firestore'
+import { collection, deleteDoc, doc, onSnapshot, setDoc, updateDoc, writeBatch } from 'firebase/firestore'
 import { useEffect, useState } from 'react'
 import type { ParsedRecipe } from '../domain/recipemd/parse'
 import type { Recipe } from '../domain/types'
@@ -36,6 +36,10 @@ export function useRecipes(householdId: string): RecipesState {
 export function saveRecipe(householdId: string, recipe: ParsedRecipe, id?: string): { id: string; done: Promise<void> } {
   const ref = id ? doc(recipesRef(householdId), id) : doc(recipesRef(householdId))
   return { id: ref.id, done: setDoc(ref, recipe) }
+}
+
+export function updateRecipe(householdId: string, id: string, changes: Partial<ParsedRecipe>): Promise<void> {
+  return updateDoc(doc(recipesRef(householdId), id), changes)
 }
 
 export function deleteRecipe(householdId: string, id: string): Promise<void> {

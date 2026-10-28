@@ -36,9 +36,22 @@ export function weekdayIndex(date: IsoDate): number {
   return (new Date(toUtcMs(date)).getUTCDay() + 6) % 7
 }
 
-/** The Monday on or before the given date. */
-export function startOfWeek(date: IsoDate): IsoDate {
-  return addDays(date, -weekdayIndex(date))
+export type WeekStart = 'monday' | 'sunday'
+
+/** The first day of the week (Monday by default, or Sunday) on or before the given date. */
+export function startOfWeek(date: IsoDate, weekStart: WeekStart = 'monday'): IsoDate {
+  const offset = weekStart === 'sunday' ? (weekdayIndex(date) + 1) % 7 : weekdayIndex(date)
+  return addDays(date, -offset)
+}
+
+/** "Mon" … "Sun" */
+export function weekdayShort(date: IsoDate): string {
+  return WEEKDAYS[weekdayIndex(date)]
+}
+
+/** Day of the month, e.g. 2 for "2026-11-02". */
+export function dayOfMonth(date: IsoDate): number {
+  return Number(date.slice(8, 10))
 }
 
 /** Inclusive list of dates from start to end. */

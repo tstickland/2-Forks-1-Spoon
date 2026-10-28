@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { addDays, dateRange, daysBetween, formatShort, recurringDates, startOfWeek, today, weekdayIndex } from './dates'
+import {
+  addDays,
+  dateRange,
+  dayOfMonth,
+  daysBetween,
+  formatShort,
+  recurringDates,
+  startOfWeek,
+  today,
+  weekdayIndex,
+  weekdayShort,
+} from './dates'
 
 describe('dates', () => {
   it('adds days across month, year and DST boundaries', () => {
@@ -19,6 +30,14 @@ describe('dates', () => {
     expect(weekdayIndex('2026-11-01')).toBe(6) // Sunday
     expect(startOfWeek('2026-11-01')).toBe('2026-10-26')
     expect(startOfWeek('2026-11-04')).toBe('2026-11-02')
+  })
+
+  it('can start weeks on Sunday', () => {
+    expect(startOfWeek('2026-11-01', 'sunday')).toBe('2026-11-01') // Sunday
+    expect(startOfWeek('2026-11-04', 'sunday')).toBe('2026-11-01')
+    expect(startOfWeek('2026-11-07', 'sunday')).toBe('2026-11-01') // Saturday
+    expect(weekdayShort('2026-11-01')).toBe('Sun')
+    expect(dayOfMonth('2026-11-01')).toBe(1)
   })
 
   it('builds inclusive ranges', () => {

@@ -31,6 +31,7 @@ npm run test:rules   # Firestore security rules, against the emulator
 4. **Project settings → Your apps → Web (`</>`)**: register an app and copy the config values into `.env.local`, using `.env.example` as the template.
    - Set `VITE_FIREBASE_AUTH_DOMAIN` to `<project-id>.web.app` (the Hosting domain), **not** `firebaseapp.com`. This keeps Google sign-in working inside the installed iPhone app.
    - Then go to **Authentication → Settings → Authorized domains** and make sure `<project-id>.web.app` is listed.
+   - In the Google Cloud Console, open **APIs & Services → Credentials** for the project, then **Web client (auto created by Google Service)**. Add `https://<project-id>.web.app` under **Authorized JavaScript origins** and `https://<project-id>.web.app/__/auth/handler` under **Authorized redirect URIs**, then save. Without this, sign-in fails with `Error 400: redirect_uri_mismatch`.
 5. Put your project ID in `.firebaserc` in place of `demo-2-forks-1-spoon`.
 6. `npx firebase login`, then `npm run deploy` (builds, then deploys hosting, rules and indexes).
 

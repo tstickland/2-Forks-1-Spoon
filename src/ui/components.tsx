@@ -75,3 +75,25 @@ export function Badge({ tone = 'neutral', children }: { tone?: 'neutral' | 'warn
   }[tone]
   return <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${styles}`}>{children}</span>
 }
+
+/** A panel that slides up from the bottom on phones (centred on wider screens). */
+export function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center" onClick={onClose}>
+      <div
+        role="dialog"
+        aria-label={title}
+        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-xl sm:rounded-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <header className="mb-3 flex items-center justify-between gap-2">
+          <h2 className="text-lg font-semibold">{title}</h2>
+          <button className="rounded-full px-2 text-2xl leading-none text-stone-500" aria-label="Close" onClick={onClose}>
+            ×
+          </button>
+        </header>
+        {children}
+      </div>
+    </div>
+  )
+}

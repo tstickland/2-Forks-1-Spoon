@@ -59,6 +59,13 @@ Keep `src/domain/` pure TypeScript with no Firebase or React imports, so it stay
 - Emulator mode always uses the `demo-2-forks-1-spoon` project, even if `.env.local` has the real config.
 - Tests get Node types from `tsconfig.test.json`. The app's `tsconfig.app.json` excludes `*.test.ts`.
 
+### Planning notes
+- The plan grid shows 2 weeks starting on **Sunday**, matching the couple's Obsidian meal plan. Use `startOfWeek(date, 'sunday')`.
+- Meal entry ids are `${date}_${slotId}_${personUid}` (`mealEntryId` in `src/domain/plan.ts`): one entry per person per slot per day, so writes are idempotent.
+- `usePlanData()` loads recipes, batches and the last 60 days of meal entries, and computes every batch's forecast in one place. Pages use it rather than computing forecasts themselves.
+- Recording a batch's cooked weight can also set the recipe's `expectedYieldG` (weight ÷ scale). That's how recipes without a yield get one.
+- Firestore writes from the UI aren't awaited before navigating. The local cache applies them immediately, which keeps the app usable offline.
+
 ### Recipe import notes
 - `recipes_vault_copy/` is a git-ignored local copy of the Obsidian vault. `src/domain/recipemd/vault.test.ts` parses every recipe in it, and is skipped when the folder isn't there.
 - The vault drifts from strict RecipeMD: YAML frontmatter, no `# Title` (the filename is the title), `#hashtag` tags, plain-text yields, ingredient groups as indented plain lines, units outside `*…*`, unicode fractions and NBSPs, and gram hints like `butter (115g)`. `parse.ts` handles all of these, and `serialize.ts` writes strict RecipeMD back out.
