@@ -222,3 +222,49 @@ describe('parseIngredientSection', () => {
     ])
   })
 })
+
+describe('per-meal add-ons', () => {
+  const WRAPS = `Easy chicken wrap meal prep
+
+---
+- *600 g* diced chicken breast
+- *100 g* light cream cheese
+
+## Per meal
+- *1* tortilla wrap
+- *10 g* spinach
+
+---
+1. Mix and cook the filling
+`
+
+  it('reads a "Per meal" group as add-ons, not cooked-ahead ingredients', () => {
+    const { recipe } = parseRecipeMd(WRAPS, { path: 'Sweet Chili Chicken Wraps.md' })
+    expect(recipe.ingredientGroups).toHaveLength(1)
+    expect(recipe.ingredientGroups[0].ingredients.map((i) => i.name)).toEqual(['diced chicken breast', 'light cream cheese'])
+    expect(recipe.perMeal?.map((i) => [i.amount, i.name])).toEqual([
+      [1, 'tortilla wrap'],
+      [10, 'spinach'],
+    ])
+  })
+
+  it('accepts other common headings', () => {
+    for (const heading of ['Per serving', 'Assembly', 'To assemble', 'Per portion (night before)']) {
+      const { recipe } = parseRecipeMd(`x\n\n---\n- *1* egg\n\n## ${heading}\n- *1* wrap\n`, { path: 'a.md' })
+      expect(recipe.perMeal?.length).toBe(1)
+    }
+  })
+
+  it('round-trips through RecipeMD export', () => {
+    const { recipe } = parseRecipeMd(WRAPS, { path: 'Sweet Chili Chicken Wraps.md' })
+    const written = toRecipeMd(recipe)
+    expect(written).toContain('## Per meal\n- *1* tortilla wrap')
+    const { recipe: again } = parseRecipeMd(written)
+    expect(again.perMeal).toEqual(recipe.perMeal)
+    expect(again.ingredientGroups).toEqual(recipe.ingredientGroups)
+  })
+
+  it('leaves recipes without the group alone', () => {
+    expect(parseRecipeMd('x\n\n---\n- *1* egg\n', { path: 'a.md' }).recipe.perMeal).toBeUndefined()
+  })
+})

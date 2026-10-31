@@ -35,6 +35,8 @@ export interface DayMacros {
   macros: Macros
   /** Planned grams whose macros are unknown (recipe has no macros, or no weight). */
   unknownG: number
+  /** Meals with per-meal add-ons whose macros haven't been entered. */
+  addOnsMissing: number
   meals: number
 }
 
@@ -55,13 +57,18 @@ export function dailyMacros(
     return perGram.get(batchId)
   }
   return dates.map((date) => {
-    const day: DayMacros = { date, macros: ZERO_MACROS, unknownG: 0, meals: 0 }
+    const day: DayMacros = { date, macros: ZERO_MACROS, unknownG: 0, addOnsMissing: 0, meals: 0 }
     for (const e of entries) {
       if (e.date !== date || e.personUid !== personUid) continue
       day.meals += 1
       const m = macrosFor(e.batchId)
       if (m) day.macros = addMacros(day.macros, scaleMacros(m, e.grams))
       else day.unknownG += e.grams
+      // Each meal also gets the recipe's per-meal add-ons (a tortilla, cheese on top).
+      const batch = batchById.get(e.batchId)
+      const recipe = batch && recipeById.get(batch.recipeId)
+      if (recipe?.perMealMacros) day.macros = addMacros(day.macros, recipe.perMealMacros)
+      else if (recipe?.perMeal?.length) day.addOnsMissing += 1
     }
     return day
   })

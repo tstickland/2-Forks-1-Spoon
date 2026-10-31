@@ -39,6 +39,34 @@ function optionalNumber(text: string): number | undefined {
   return text.trim() === '' ? undefined : Number(text)
 }
 
+type MacroText = Record<keyof Macros, string>
+
+function macroText(m: Macros | undefined): MacroText {
+  return { kcal: numberText(m?.kcal), protein: numberText(m?.protein), carbs: numberText(m?.carbs), fat: numberText(m?.fat) }
+}
+
+/** All four blank → no macros; all four numbers → macros; anything else → a problem to show. */
+function readMacros(text: MacroText): { value?: Macros; problem?: string } {
+  const values = MACRO_KEYS.map((k) => optionalNumber(text[k]))
+  const filled = values.filter((v) => v !== undefined).length
+  if (filled === 0) return {}
+  if (filled < 4) return { problem: 'Fill in all four macros, or leave them all blank.' }
+  if (values.some((v) => !(v! >= 0))) return { problem: 'Macros must be numbers.' }
+  return { value: { kcal: values[0]!, protein: values[1]!, carbs: values[2]!, fat: values[3]! } }
+}
+
+function MacroFields({ value, onChange }: { value: MacroText; onChange: (v: MacroText) => void }) {
+  return (
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {MACRO_KEYS.map((k) => (
+        <Field key={k} label={MACRO_LABELS[k]}>
+          <Input type="number" inputMode="decimal" min={0} value={value[k]} onChange={(e) => onChange({ ...value, [k]: e.target.value })} />
+        </Field>
+      ))}
+    </div>
+  )
+}
+
 function RecipeForm({ householdId, existing }: { householdId: string; existing?: Recipe }) {
   const navigate = useNavigate()
   const [title, setTitle] = useState(existing?.title ?? '')
@@ -46,29 +74,28 @@ function RecipeForm({ householdId, existing }: { householdId: string; existing?:
   const [tags, setTags] = useState(existing?.tags.join(', ') ?? '')
   const [yieldG, setYieldG] = useState(numberText(existing?.expectedYieldG))
   const [fridgeDays, setFridgeDays] = useState(String(existing?.fridgeDays ?? DEFAULT_FRIDGE_DAYS))
-  const [macros, setMacros] = useState<Record<keyof Macros, string>>({
-    kcal: numberText(existing?.macrosTotal?.kcal),
-    protein: numberText(existing?.macrosTotal?.protein),
-    carbs: numberText(existing?.macrosTotal?.carbs),
-    fat: numberText(existing?.macrosTotal?.fat),
-  })
+  const [macros, setMacros] = useState(macroText(existing?.macrosTotal))
   const [ingredients, setIngredients] = useState(existing ? ingredientSectionMd(existing.ingredientGroups) : '')
+  const [perMeal, setPerMeal] = useState(existing?.perMeal?.length ? ingredientSectionMd([{ title: '', ingredients: existing.perMeal }]) : '')
+  const [perMealMacros, setPerMealMacros] = useState(macroText(existing?.perMealMacros))
   const [instructions, setInstructions] = useState(existing?.instructions ?? '')
 
   const parsed = useMemo(() => parseIngredientSection(ingredients), [ingredients])
   const ingredientCount = parsed.groups.reduce((n, g) => n + g.ingredients.length, 0)
+  const parsedPerMeal = useMemo(() => parseIngredientSection(perMeal), [perMeal])
+  const perMealLines = parsedPerMeal.groups.flatMap((g) => g.ingredients)
 
   const yieldValue = optionalNumber(yieldG)
   const fridgeValue = Number(fridgeDays)
-  const macroValues = MACRO_KEYS.map((k) => optionalNumber(macros[k]))
-  const macrosFilled = macroValues.filter((v) => v !== undefined).length
+  const totalMacros = readMacros(macros)
+  const addOnMacros = readMacros(perMealMacros)
 
   const problems = [
     !title.trim() && 'Give the recipe a title.',
     yieldValue !== undefined && !(yieldValue > 0) && 'Cooked weight must be a positive number of grams.',
     !(Number.isInteger(fridgeValue) && fridgeValue >= 0) && 'Fridge days must be a whole number.',
-    macrosFilled > 0 && macrosFilled < 4 && 'Fill in all four macros, or leave them all blank.',
-    macroValues.some((v) => v !== undefined && !(v >= 0)) && 'Macros must be numbers.',
+    totalMacros.problem,
+    addOnMacros.problem && `Per-meal macros: ${addOnMacros.problem.toLowerCase()}`,
   ].filter(Boolean) as string[]
 
   const submit = (e: FormEvent) => {
@@ -84,11 +111,10 @@ function RecipeForm({ householdId, existing }: { householdId: string; existing?:
       yieldsText: existing?.yieldsText ?? '',
       expectedYieldG: yieldValue,
       fridgeDays: fridgeValue,
-      macrosTotal:
-        macrosFilled === 4
-          ? { kcal: macroValues[0]!, protein: macroValues[1]!, carbs: macroValues[2]!, fat: macroValues[3]! }
-          : undefined,
+      macrosTotal: totalMacros.value,
       ingredientGroups: parsed.groups,
+      perMeal: perMealLines.length ? perMealLines : undefined,
+      perMealMacros: perMealLines.length ? addOnMacros.value : undefined,
       instructions: instructions.trim(),
     }
     const { id, done } = saveRecipe(householdId, recipe, existing?.id)
@@ -129,29 +155,18 @@ function RecipeForm({ householdId, existing }: { householdId: string; existing?:
           </Field>
         </div>
         <p className="mt-2 text-sm text-stone-500">
-          Weigh everything you cooked (minus the container). Planning uses this to work out how many days a batch lasts.
+          Weigh everything you cooked ahead (minus the container), not the per-meal add-ons. Planning uses this to work
+          out how many days a batch lasts.
           {existing?.yieldsText && ` Originally written as "${existing.yieldsText}".`}
         </p>
       </Card>
 
-      <Card title="Macros for the whole recipe (1×)">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {MACRO_KEYS.map((k) => (
-            <Field key={k} label={MACRO_LABELS[k]}>
-              <Input
-                type="number"
-                inputMode="decimal"
-                min={0}
-                value={macros[k]}
-                onChange={(e) => setMacros({ ...macros, [k]: e.target.value })}
-              />
-            </Field>
-          ))}
-        </div>
+      <Card title="Macros for the cooked-ahead part (1×)">
+        <MacroFields value={macros} onChange={setMacros} />
         <p className="mt-2 text-sm text-stone-500">Totals for everything in the pot, e.g. from your tracking app.</p>
       </Card>
 
-      <Card title="Ingredients">
+      <Card title="Ingredients (cooked ahead)">
         <TextArea
           rows={Math.max(8, ingredients.split('\n').length + 1)}
           className="font-mono text-sm"
@@ -172,6 +187,34 @@ function RecipeForm({ householdId, existing }: { householdId: string; existing?:
               <li key={w}>⚠ {w}</li>
             ))}
           </ul>
+        )}
+      </Card>
+
+      <Card title="Added per meal (optional)">
+        <p className="mb-2 text-sm text-stone-500">
+          Things added fresh to each meal when you assemble it: a tortilla per wrap, cheese and pepperoni on a bowl.
+          They aren't part of the batch or its weight. Shopping lists buy them for each planned meal.
+        </p>
+        <TextArea
+          rows={Math.max(3, perMeal.split('\n').length + 1)}
+          className="font-mono text-sm"
+          aria-label="Added per meal"
+          value={perMeal}
+          onChange={(e) => setPerMeal(e.target.value)}
+          placeholder={'- *1* tortilla wrap\n- *30 g* shredded mozzarella'}
+        />
+        {parsedPerMeal.warnings.length > 0 && (
+          <ul className="mt-1 space-y-0.5 text-sm text-amber-800">
+            {parsedPerMeal.warnings.map((w) => (
+              <li key={w}>⚠ {w}</li>
+            ))}
+          </ul>
+        )}
+        {perMealLines.length > 0 && (
+          <div className="mt-3">
+            <h3 className="mb-1 text-sm font-semibold">Macros for one meal's add-ons</h3>
+            <MacroFields value={perMealMacros} onChange={setPerMealMacros} />
+          </div>
         )}
       </Card>
 

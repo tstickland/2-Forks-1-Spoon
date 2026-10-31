@@ -61,7 +61,7 @@ export function MacrosPage() {
 function PersonWeek({ member, days }: { member: Member; days: DayMacros[] }) {
   const target = member.macroTargets
   const planned = days.filter((d) => d.meals > 0)
-  const missing = days.some((d) => d.unknownG > 0)
+  const missing = days.some((d) => d.unknownG > 0 || d.addOnsMissing > 0)
   return (
     <Card title={member.name}>
       <p className="-mt-2 mb-3 text-xs text-stone-500">Daily target: {formatMacros(target)}</p>
@@ -81,7 +81,7 @@ function PersonWeek({ member, days }: { member: Member; days: DayMacros[] }) {
             <tr key={d.date} className={d.date === today() ? 'bg-brand-50' : ''}>
               <td className="py-1.5 pr-2 whitespace-nowrap">
                 {weekdayShort(d.date)} {dayOfMonth(d.date)}
-                {d.unknownG > 0 && <span className="text-amber-700">*</span>}
+                {(d.unknownG > 0 || d.addOnsMissing > 0) && <span className="text-amber-700">*</span>}
               </td>
               {MACRO_KEYS.map((k) => (
                 <td key={k} className="py-1.5 text-right tabular-nums">
@@ -99,7 +99,8 @@ function PersonWeek({ member, days }: { member: Member; days: DayMacros[] }) {
       )}
       {missing && (
         <p className="mt-1 text-xs text-amber-800">
-          * Includes meals from recipes without macros (or without a cooked weight), so the real total is higher.
+          * Includes meals whose macros aren't complete (a recipe without macros or a cooked weight, or per-meal add-ons
+          without macros), so the real total is higher.
         </p>
       )}
     </Card>

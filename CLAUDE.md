@@ -22,6 +22,7 @@ An installable **PWA** backed by **Firebase** (Firestore + Auth + Hosting, Spark
 ### Core concept: plan around batches
 - A **Batch** is one cooking session of a recipe: recipe × scale on a cook date. Its weight is `estimatedWeightG` (recipe `expectedYieldG` × scale) until the cooked food is weighed and `actualWeightG` is set, which then overrides the estimate.
 - A **meal entry** assigns **grams from a batch** to one person's slot on a date. A shared dinner is one entry per person. Each person has a default portion per slot.
+- Many recipes are only partly cooked ahead. `recipe.perMeal` lists what's added to each meal at assembly (a tortilla, cheese on top). It's **not** in the batch or its weight. Each meal entry adds 1× of it to groceries (bought by that meal's date, even if the batch is already cooked) and adds `perMealMacros` to macros. In RecipeMD it's a `## Per meal` ingredient group.
 
 ### Conventions
 - Keep `src/domain/` pure TypeScript with no Firebase or React imports, so it stays unit-testable.

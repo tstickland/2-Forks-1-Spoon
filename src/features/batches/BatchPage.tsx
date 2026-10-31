@@ -65,6 +65,7 @@ export function BatchPage() {
       <Details key={`${batch.cookDate}-${batch.scale}-${batch.frozenG}`} householdId={household.id} batch={batch} forecast={forecast} />
       <PlannedMeals household={household} meals={meals} forecast={forecast} />
       {recipe && <ScaledIngredients recipe={recipe} scale={batch.scale} />}
+      {recipe && <PerMealAssembly recipe={recipe} mealCount={meals.length} />}
 
       <div className="flex justify-end">
         <Button variant="danger" onClick={remove}>
@@ -238,7 +239,7 @@ function PlannedMeals({ household, meals, forecast }: { household: Household; me
 
 function ScaledIngredients({ recipe, scale }: { recipe: Recipe; scale: number }) {
   return (
-    <Card title={`Ingredients at ${formatScale(scale)}`}>
+    <Card title={`${recipe.perMeal?.length ? 'Cook ahead' : 'Ingredients'} at ${formatScale(scale)}`}>
       {recipe.ingredientGroups.map((g, i) => (
         <section key={i} className="mb-3 last:mb-0">
           {g.title && <h3 className="mb-1 text-sm font-semibold text-stone-700">{g.title}</h3>}
@@ -255,6 +256,34 @@ function ScaledIngredients({ recipe, scale }: { recipe: Recipe; scale: number })
           </ul>
         </section>
       ))}
+    </Card>
+  )
+}
+
+/** What gets added to each meal at assembly, and how much that is for every meal planned from this batch. */
+function PerMealAssembly({ recipe, mealCount }: { recipe: Recipe; mealCount: number }) {
+  if (!recipe.perMeal?.length) return null
+  return (
+    <Card title="Added per meal">
+      <ul className="space-y-1">
+        {recipe.perMeal.map((line, j) => {
+          const total = mealCount > 0 ? scaledAmountText(line, mealCount) : ''
+          return (
+            <li key={j} className="flex items-baseline justify-between gap-3">
+              <span>
+                {line.amountText && <span className="mr-1.5 font-semibold text-stone-800">{line.amountText}</span>}
+                {line.name}
+              </span>
+              {total && <span className="shrink-0 text-sm text-stone-500">{total} total</span>}
+            </li>
+          )
+        })}
+      </ul>
+      <p className="mt-2 text-sm text-stone-500">
+        {mealCount > 0
+          ? `Totals are for the ${mealCount} meal${mealCount === 1 ? '' : 's'} planned from this batch. They're on the shopping list by each meal's date.`
+          : 'Plan meals from this batch to see totals.'}
+      </p>
     </Card>
   )
 }

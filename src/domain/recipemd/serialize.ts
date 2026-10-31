@@ -1,6 +1,7 @@
 // Writes recipes back out as strict RecipeMD, so they can go back into an Obsidian vault.
 
 import { isMassUnit, parseQuantity } from '../quantity'
+import { PER_MEAL_TITLE } from './parse'
 import type { IngredientGroup, IngredientLine, Recipe } from '../types'
 
 /** The yields line with the weight replaced by the recipe's current expected yield. */
@@ -34,7 +35,9 @@ export function toRecipeMd(recipe: Omit<Recipe, 'id'>): string {
   const yields = yieldsLine(recipe)
   if (yields) header.push(`**${yields}**`)
 
-  const sections = [header.join('\n\n'), ingredientSectionMd(recipe.ingredientGroups)]
+  // Per-meal add-ons go last, as their own group, so importing again puts them back in `perMeal`.
+  const groups = recipe.perMeal?.length ? [...recipe.ingredientGroups, { title: PER_MEAL_TITLE, ingredients: recipe.perMeal }] : recipe.ingredientGroups
+  const sections = [header.join('\n\n'), ingredientSectionMd(groups)]
   if (recipe.instructions) sections.push(recipe.instructions)
   return `${sections.join('\n\n---\n\n')}\n`
 }

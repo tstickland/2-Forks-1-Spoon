@@ -136,7 +136,13 @@ export function TripPage() {
 }
 
 function ItemRow({ item, checked, onToggle, onSetUp }: { item: GroceryItem; checked: boolean; onToggle: () => void; onSetUp: () => void }) {
-  const uses = item.uses.map((u) => `${u.recipeTitle} (${formatShort(u.cookDate)})`).join(', ')
+  const uses = item.uses
+    .map((u) =>
+      u.meals
+        ? `${u.recipeTitle}: ${u.meals} meal${u.meals === 1 ? '' : 's'} from ${formatShort(u.neededBy)}`
+        : `${u.recipeTitle} (cook ${formatShort(u.neededBy)})`,
+    )
+    .join(', ')
   return (
     <li className="flex items-start gap-3 py-2">
       <input

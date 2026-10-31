@@ -212,3 +212,50 @@ describe('buildGroceryPlan', () => {
     expect(lastPlannedDate([], [])).toBeUndefined()
   })
 })
+
+describe('per-meal add-ons', () => {
+  const wraps: Recipe = {
+    id: 'wraps',
+    title: 'Sweet Chili Chicken Wraps',
+    description: '',
+    tags: [],
+    yieldsText: '',
+    fridgeDays: 4,
+    instructions: '',
+    ingredientGroups: [{ title: '', ingredients: [{ amountText: '600 g', amount: 600, unit: 'g', grams: 600, name: 'diced chicken breast' }] }],
+    perMeal: [
+      { amountText: '1', amount: 1, name: 'tortilla wrap' },
+      { amountText: '10 g', amount: 10, unit: 'g', grams: 10, name: 'spinach' },
+    ],
+  }
+  const catalog = [catalogItem({ id: 'spin', name: 'Spinach', store: 'Grocery', shelfLifeDays: 4 })]
+  // Filling already cooked on Sun 1 Nov; both of you eat a wrap Mon–Fri, then again the week after.
+  const cooked: Batch = { id: 'w1', recipeId: 'wraps', cookDate: '2026-11-01', scale: 1, status: 'cooked', frozenG: 0, notes: '' }
+  const entries = ['2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05', '2026-11-06', '2026-11-09'].flatMap((date) => [
+    { date, batchId: 'w1' },
+    { date, batchId: 'w1' },
+  ])
+  const plan = buildGroceryPlan({ batches: [cooked], recipeById: new Map([['wraps', wraps]]), catalog, schedule, today: TODAY, entries })
+  const list = (id: string) => plan.trips.find((t) => t.trip.id === id)!
+
+  it('buys add-ons per planned meal, even when the batch is already cooked', () => {
+    const items = list('Costco_2026-10-31').items
+    expect(items.find((i) => i.name === 'Tortilla wrap')?.quantity).toBe('10')
+    expect(items.find((i) => i.name === 'Spinach')?.quantity).toBe('100 g')
+    // The filling itself was cooked, so its chicken isn't listed.
+    expect(items.some((i) => i.name === 'Chicken breast')).toBe(false)
+  })
+
+  it('assigns add-ons by each meal’s date, with meal counts', () => {
+    const tortilla = list('Costco_2026-10-31').items.find((i) => i.name === 'Tortilla wrap')!
+    expect(tortilla.uses).toEqual([{ batchId: 'w1', recipeTitle: 'Sweet Chili Chicken Wraps', neededBy: '2026-11-02', meals: 10 }])
+    // Monday 9 Nov's wraps come from the grocery run on the 7th.
+    expect(list('Grocery_2026-11-07').items.find((i) => i.name === 'Tortilla wrap')?.quantity).toBe('2')
+  })
+
+  it('flags short-lived add-ons that would not keep until a meal', () => {
+    const spinach = list('Costco_2026-10-31').items.find((i) => i.name === 'Spinach')!
+    expect(spinach.notes).toContain('No Grocery trip before Mon 2 Nov')
+    expect(spinach.notes.some((n) => n.includes('Might not keep until Thu 5 Nov'))).toBe(true)
+  })
+})

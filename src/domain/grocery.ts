@@ -4,7 +4,7 @@ import { formatAmount, scaledAmountText } from './batch'
 import { addDays, daysBetween, formatShort, recurringDates } from './dates'
 import { catalogIndex, guessAisle, guessStaple, ingredientKey, isFree } from './ingredients'
 import { formatNumber } from './quantity'
-import type { Batch, CatalogIngredient, IngredientLine, IsoDate, Recipe, ShoppingSchedule, Store, TripStore } from './types'
+import type { Batch, CatalogIngredient, IngredientLine, IsoDate, MealEntry, Recipe, ShoppingSchedule, Store, TripStore } from './types'
 
 export interface Trip {
   id: string
@@ -136,7 +136,10 @@ export function formatTotals(t: Totals, item?: CatalogIngredient): string {
 export interface ItemUse {
   batchId: string
   recipeTitle: string
-  cookDate: IsoDate
+  /** Cook day for batch ingredients; the first meal's date for per-meal add-ons. */
+  neededBy: IsoDate
+  /** Set for per-meal add-ons: how many planned meals this covers. */
+  meals?: number
 }
 
 export interface GroceryItem {
@@ -222,6 +225,8 @@ export interface GroceryInput {
   catalog: CatalogIngredient[]
   schedule: ShoppingSchedule[]
   today: IsoDate
+  /** Planned meals; each one needs its recipe's per-meal add-ons by its date. */
+  entries?: Pick<MealEntry, 'date' | 'batchId'>[]
   /** Last date with anything planned (a meal or a batch). */
   plannedUntil?: IsoDate
   /** How far ahead to list trips. */
@@ -229,49 +234,66 @@ export interface GroceryInput {
 }
 
 export function buildGroceryPlan(input: GroceryInput): GroceryPlan {
-  const { batches, recipeById, catalog, schedule, today, plannedUntil, horizonDays = 42 } = input
+  const { batches, recipeById, catalog, schedule, today, entries = [], plannedUntil, horizonDays = 42 } = input
   const trips = upcomingTrips(schedule, today, addDays(today, horizonDays))
   const index = catalogIndex(catalog)
   const buckets = new Map<string, Map<string, Accum>>() // trip id ("" = uncovered) → item key → totals
 
+  /** Put `scale` × one recipe line on the trip that has to buy it by `neededBy`. */
+  const need = (line: IngredientLine, scale: number, neededBy: IsoDate, batch: Batch, recipe: Recipe, perMeal: boolean) => {
+    const key = ingredientKey(line.name)
+    if (isFree(key)) return
+    const item = index.get(key)
+    const choice = chooseTrip(trips, item?.store ?? 'Either', neededBy, item?.shelfLifeDays)
+    const bucket = buckets.get(choice.trip?.id ?? '') ?? new Map<string, Accum>()
+    buckets.set(choice.trip?.id ?? '', bucket)
+
+    const itemKey = item ? `c:${item.id}` : `k:${key}`
+    let acc = bucket.get(itemKey)
+    if (!acc) {
+      acc = {
+        item: {
+          key: itemKey,
+          ingredientKey: key,
+          name: item?.name ?? capitalise(key),
+          catalog: item,
+          aisle: item?.aisle || guessAisle(key),
+          aisleGuessed: !item?.aisle,
+          quantity: '',
+          uses: [],
+          notes: [],
+        },
+        totals: emptyTotals(),
+        staple: item ? item.pantryStaple : guessStaple(key),
+      }
+      bucket.set(itemKey, acc)
+    }
+    addLine(acc.totals, line, scale, item)
+    const use = acc.item.uses.find((u) => u.batchId === batch.id && Boolean(u.meals) === perMeal)
+    if (!use) {
+      acc.item.uses.push({ batchId: batch.id, recipeTitle: recipe.title, neededBy, ...(perMeal ? { meals: 1 } : {}) })
+    } else if (perMeal) {
+      use.meals! += 1
+      if (neededBy < use.neededBy) use.neededBy = neededBy
+    }
+    if (choice.note && !acc.item.notes.includes(choice.note)) acc.item.notes.push(choice.note)
+  }
+
+  // Cooked-ahead ingredients, for batches still to cook.
   const toBuy = batches.filter((b) => b.status === 'planned' && b.cookDate >= today)
   for (const batch of [...toBuy].sort((a, b) => a.cookDate.localeCompare(b.cookDate))) {
     const recipe = recipeById.get(batch.recipeId)
     if (!recipe) continue
-    for (const line of recipe.ingredientGroups.flatMap((g) => g.ingredients)) {
-      const key = ingredientKey(line.name)
-      if (isFree(key)) continue
-      const item = index.get(key)
-      const choice = chooseTrip(trips, item?.store ?? 'Either', batch.cookDate, item?.shelfLifeDays)
-      const bucket = buckets.get(choice.trip?.id ?? '') ?? new Map<string, Accum>()
-      buckets.set(choice.trip?.id ?? '', bucket)
+    for (const line of recipe.ingredientGroups.flatMap((g) => g.ingredients)) need(line, batch.scale, batch.cookDate, batch, recipe, false)
+  }
 
-      const itemKey = item ? `c:${item.id}` : `k:${key}`
-      let acc = bucket.get(itemKey)
-      if (!acc) {
-        acc = {
-          item: {
-            key: itemKey,
-            ingredientKey: key,
-            name: item?.name ?? capitalise(key),
-            catalog: item,
-            aisle: item?.aisle || guessAisle(key),
-            aisleGuessed: !item?.aisle,
-            quantity: '',
-            uses: [],
-            notes: [],
-          },
-          totals: emptyTotals(),
-          staple: item ? item.pantryStaple : guessStaple(key),
-        }
-        bucket.set(itemKey, acc)
-      }
-      addLine(acc.totals, line, batch.scale, item)
-      if (!acc.item.uses.some((u) => u.batchId === batch.id)) {
-        acc.item.uses.push({ batchId: batch.id, recipeTitle: recipe.title, cookDate: batch.cookDate })
-      }
-      if (choice.note && !acc.item.notes.includes(choice.note)) acc.item.notes.push(choice.note)
-    }
+  // Per-meal add-ons, for every upcoming meal (whether or not its batch is cooked yet), bought by the meal's date.
+  const batchById = new Map(batches.map((b) => [b.id, b]))
+  for (const entry of [...entries].filter((e) => e.date >= today).sort((a, b) => a.date.localeCompare(b.date))) {
+    const batch = batchById.get(entry.batchId)
+    const recipe = batch && recipeById.get(batch.recipeId)
+    if (!batch || !recipe?.perMeal?.length) continue
+    for (const line of recipe.perMeal) need(line, 1, entry.date, batch, recipe, true)
   }
 
   const finish = (accs: Iterable<Accum>) =>

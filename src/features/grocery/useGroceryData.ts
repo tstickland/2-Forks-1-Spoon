@@ -28,6 +28,7 @@ export function useGroceryData(): { data: GroceryData | null; error: string | nu
       catalog,
       schedule: household.schedule,
       today: today(),
+      entries: planData.entries,
       plannedUntil: lastPlannedDate(planData.batches, planData.entries),
     })
     return { plan, catalog, tripStates }

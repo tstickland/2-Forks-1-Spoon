@@ -67,10 +67,28 @@ describe('dailyMacros', () => {
     expect(mon.macros.kcal).toBeCloseTo(450)
     expect(mon.macros.protein).toBeCloseTo(36)
     expect(mon.unknownG).toBe(500)
-    expect(tue).toEqual({ date: '2026-11-03', macros: { kcal: 0, protein: 0, carbs: 0, fat: 0 }, unknownG: 0, meals: 0 })
+    expect(tue).toEqual({ date: '2026-11-03', macros: { kcal: 0, protein: 0, carbs: 0, fat: 0 }, unknownG: 0, addOnsMissing: 0, meals: 0 })
   })
 
   it('only counts the given person', () => {
     expect(dailyMacros('p', ['2026-11-02'], entries, batches, recipes)[0].macros.kcal).toBeCloseTo(350)
+  })
+
+  it('adds per-meal add-ons on top of the filling, once per meal', () => {
+    // Wrap filling at 1 kcal/g plus one tortilla (140 kcal) per wrap.
+    const wraps: Recipe = { ...recipe, id: 'rw', perMeal: [{ amountText: '1', amount: 1, name: 'tortilla' }], perMealMacros: { kcal: 140, protein: 4, carbs: 24, fat: 3 } }
+    const noAddOnMacros: Recipe = { ...wraps, id: 'rx', perMealMacros: undefined }
+    const b = new Map([batch('bw', 'rw'), batch('bx', 'rx')].map((x) => [x.id, x]))
+    const r = new Map([wraps, noAddOnMacros].map((x) => [x.id, x]))
+    const meals: MealEntry[] = [
+      { id: 'a', date: '2026-11-02', slotId: 'lunch-t', personUid: 't', batchId: 'bw', grams: 250 },
+      { id: 'b', date: '2026-11-02', slotId: 'lunch-p', personUid: 'p', batchId: 'bw', grams: 170 },
+      { id: 'c', date: '2026-11-03', slotId: 'lunch-t', personUid: 't', batchId: 'bx', grams: 250 },
+    ]
+    const [mon, tue] = dailyMacros('t', ['2026-11-02', '2026-11-03'], meals, b, r)
+    expect(mon.macros.kcal).toBeCloseTo(250 + 140)
+    expect(mon.addOnsMissing).toBe(0)
+    expect(dailyMacros('p', ['2026-11-02'], meals, b, r)[0].macros.kcal).toBeCloseTo(170 + 140)
+    expect(tue.addOnsMissing).toBe(1)
   })
 })

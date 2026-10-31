@@ -219,9 +219,12 @@ export function parseRecipeMd(markdown: string, options: ParseOptions = {}): Par
   const headerEnd = separators[0] ?? lines.length
   const ingredientsEnd = separators[1] ?? lines.length
   const header = parseHeader(lines.slice(0, headerEnd))
-  const { groups, warnings: ingredientWarnings } = parseIngredientSection(
+  const { groups: allGroups, warnings: ingredientWarnings } = parseIngredientSection(
     lines.slice(headerEnd + 1, ingredientsEnd).join('\n'),
   )
+  // A "Per meal" group holds what's added to each meal at assembly rather than cooked ahead.
+  const groups = allGroups.filter((g) => !isPerMealTitle(g.title))
+  const perMeal = allGroups.filter((g) => isPerMealTitle(g.title)).flatMap((g) => g.ingredients)
   const instructions = separators[1] !== undefined ? lines.slice(ingredientsEnd + 1).join('\n').trim() : ''
 
   const title = header.title || titleFromPath(options.path) || 'Untitled recipe'
@@ -250,6 +253,15 @@ export function parseRecipeMd(markdown: string, options: ParseOptions = {}): Par
   }
   const grams = yieldGrams(header.yieldsText)
   if (grams) recipe.expectedYieldG = grams
+  if (perMeal.length) recipe.perMeal = perMeal
   if (options.path) recipe.sourcePath = options.path
   return { recipe, warnings }
+}
+
+/** The ingredient-group heading used for per-meal add-ons when reading and writing RecipeMD. */
+export const PER_MEAL_TITLE = 'Per meal'
+
+/** "Per meal", "Per serving (add when assembling)", "Assembly"… */
+export function isPerMealTitle(title: string): boolean {
+  return /^(per (meal|serving|portion)|assembly|to assemble|when serving)\b/i.test(title.trim())
 }

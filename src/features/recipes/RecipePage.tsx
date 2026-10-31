@@ -51,7 +51,7 @@ export function RecipePage() {
 
       <Facts recipe={recipe} />
 
-      <Card title="Ingredients">
+      <Card title={recipe.perMeal?.length ? 'Ingredients (cooked ahead)' : 'Ingredients'}>
         {recipe.ingredientGroups.length === 0 && <p className="text-stone-500">No ingredients.</p>}
         {recipe.ingredientGroups.map((g, i) => (
           <section key={i} className="mb-3 last:mb-0">
@@ -67,6 +67,22 @@ export function RecipePage() {
           </section>
         ))}
       </Card>
+
+      {recipe.perMeal?.length ? (
+        <Card title="Added per meal">
+          <ul className="space-y-1">
+            {recipe.perMeal.map((line, j) => (
+              <li key={j}>
+                {line.amountText && <span className="mr-1.5 font-semibold text-stone-800">{line.amountText}</span>}
+                {line.name}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-sm text-stone-500">
+            {recipe.perMealMacros ? `Adds ${formatMacros(recipe.perMealMacros)} to each meal.` : 'No macros entered for these yet.'}
+          </p>
+        </Card>
+      ) : null}
 
       {recipe.instructions && (
         <Card title="Instructions">
@@ -99,7 +115,7 @@ function Facts({ recipe }: { recipe: Recipe }) {
         {recipe.expectedYieldG ? `${recipe.expectedYieldG} g` : <span className="text-amber-700">Not set</span>}
       </Fact>
       <Fact label="Keeps in fridge">{recipe.fridgeDays} days</Fact>
-      <Fact label="Whole recipe">
+      <Fact label={recipe.perMeal?.length ? 'Cooked-ahead part' : 'Whole recipe'}>
         {recipe.macrosTotal ? formatMacros(recipe.macrosTotal) : <span className="text-amber-700">No macros</span>}
       </Fact>
       <Fact label="Per 100 g">{per100 ? formatMacros(per100) : '—'}</Fact>

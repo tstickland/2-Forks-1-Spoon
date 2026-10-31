@@ -6,7 +6,7 @@ import { formatGrams, formatScale } from '../../domain/batch'
 import { addDays, dateRange, formatShort, weekdayShort } from '../../domain/dates'
 import { slotEaters } from '../../domain/household'
 import { assignSlot, defaultPortion, slotEntries } from '../../domain/plan'
-import type { Batch, IsoDate, Slot } from '../../domain/types'
+import type { Batch, IngredientLine, IsoDate, Slot } from '../../domain/types'
 import { Button, Input, Sheet } from '../../ui/components'
 import { runwaySummary } from '../batches/runwayText'
 import type { PlanData } from './usePlanData'
@@ -116,6 +116,7 @@ export function AssignSheet({
               </label>
             ))}
           </div>
+          <AddOnsHint perMeal={data.recipeById.get(data.batchById.get(batchId)?.recipeId ?? '')?.perMeal} />
         </section>
 
         {followingDays.length > 0 && (
@@ -204,4 +205,11 @@ function BatchOption({
       </label>
     </li>
   )
+}
+
+/** Grams above are just the cooked-ahead part; say what else goes on each meal. */
+function AddOnsHint({ perMeal }: { perMeal?: IngredientLine[] }) {
+  if (!perMeal?.length) return null
+  const list = perMeal.map((l) => (l.amountText ? `${l.amountText} ${l.name}` : l.name)).join(', ')
+  return <p className="mt-2 text-xs text-stone-500">Grams are the cooked part. Each meal also gets: {list}.</p>
 }

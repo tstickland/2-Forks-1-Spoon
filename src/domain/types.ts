@@ -74,14 +74,22 @@ export interface Recipe {
   title: string
   description: string
   tags: string[]
-  /** Cooked weight of the whole recipe at 1× scale. */
+  /** Cooked weight of the cooked-ahead part (`ingredientGroups`) at 1× scale. */
   expectedYieldG?: number
   /** The RecipeMD yields line as written, kept for round-tripping. */
   yieldsText: string
+  /** What gets cooked ahead as the batch, scaled by the batch's scale. */
   ingredientGroups: IngredientGroup[]
+  /**
+   * Added fresh to each meal when it's assembled (a tortilla, cheese on top). Not part of the batch
+   * or its weight; multiplied by the number of planned meals instead.
+   */
+  perMeal?: IngredientLine[]
   instructions: string
-  /** Macros for the whole recipe at 1× scale. */
+  /** Macros for the cooked-ahead part at 1× scale. */
   macrosTotal?: Macros
+  /** Macros of one meal's `perMeal` add-ons. */
+  perMealMacros?: Macros
   fridgeDays: number
   /** Original RecipeMD text this recipe was imported from. */
   source?: string
